@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import streamlit as st
 import yfinance as yf
@@ -6,93 +5,37 @@ import yfinance as yf
 st.set_page_config(page_title="Nifty 50 Scanner", layout="wide")
 st.title("📈 Nifty 50 స్కానర్")
 
-# NIFTY 50 జాబితా
+# జాబితా మారుతూ ఉంటుంది; అవసరమైతే ఇక్కడ సవరించండి
 NIFTY_50 = [
-    "ADANIENT",
-    "ADANIPORTS",
-    "APOLLOHOSP",
-    "ASIANPAINT",
-    "BAJAJ-AUTO",
-    "BAJFINANCE",
-    "BAJAJFINSV",
-    "BEL",
-    "BHARTIARTL",
-    "BPCL",
-    "BRITANNIA",
-    "CIPLA",
-    "COALINDIA",
-    "DRREDDY",
-    "EICHERMOT",
-    "GRASIM",
-    "HCLTECH",
-    "HDFCBANK",
-    "HDFCLIFE",
-    "HEROMOTOCO",
-    "HINDALCO",
-    "HINDUNILVR",
-    "ICICIBANK",
-    "INDIGO",
-    "INFY",
-    "ITC",
-    "JSWSTEEL",
-    "KOTAKBANK",
-    "LT",
-    "M&M",
-    "MARUTI",
-    "NESTLEIND",
-    "NTPC",
-    "ONGC",
-    "POWERGRID",
-    "RELIANCE",
-    "SBILIFE",
-    "SBIN",
-    "SUNPHARMA",
-    "TATACONSUMER",
-    "TATAMOTORS",
-    "TATASTEEL",
-    "TCS",
-    "TECHM",
-    "TITAN",
-    "TRENT",
-    "ULTRACEMCO",
-    "WIPRO",
+    "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT", "AXISBANK",
+    "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV", "BEL", "BHARTIARTL",
+    "CIPLA", "COALINDIA", "DRREDDY", "EICHERMOT", "ETERNAL",
+    "GRASIM", "HCLTECH", "HDFCBANK", "HDFCLIFE", "HINDALCO",
+    "HINDUNILVR", "ICICIBANK", "INDIGO", "INFY", "ITC",
+    "JIOFIN", "JSWSTEEL", "KOTAKBANK", "LT", "M&M",
+    "MARUTI", "MAXHEALTH", "NESTLEIND", "NTPC", "ONGC",
+    "POWERGRID", "RELIANCE", "SBILIFE", "SBIN", "SHRIRAMFIN",
+    "SUNPHARMA", "TATACONSUMER", "TATAMOTORS", "TATASTEEL", "TCS",
+    "TECHM", "TITAN", "TRENT", "ULTRACEMCO", "WIPRO",
 ]
+TICKERS = [f"{s}.NS" for s in NIFTY_50]
 
 
-@st.cache_data(ttl=60, show_spinner="డేటా డౌన్లోడ్ అవుతోంది...")
-def fetch_intraday_data(symbol):
-    ticker = f"{symbol}.NS"
-    df = yf.download(
-        ticker, period="1d", interval="1m", progress=False, threads=True
+@st.cache_data(ttl=300, show_spinner="డైలీ డేటా డౌన్‌లోడ్ అవుతోంది...")
+def fetch_daily():
+    return yf.download(
+        TICKERS, period="6mo", interval="1d", group_by="ticker",
+        auto_adjust=True, progress=False, threads=True,
     )
-    if not df.empty:
-        return df
-    return pd.DataFrame()
+
+
+@st.cache_data(ttl=60, show_spinner="లైవ్ ధరలు తెస్తున్నాం...")
+def fetch_live():
+    return yf.download(
+        TICKERS, period="1d", interval="1m", group_by="ticker",
+        auto_adjust=True, progress=False, threads=True,
+    )
 
 
 def rsi(series, n=14):
-    delta = series.diff()
-    gain = delta.clip(lower=0).rolling(n).mean()
-    loss = (-delta.clip(upper=0)).rolling(n).mean()
-    rs = gain / loss
-    return 100 - (100 / (1 + rs))
-
-
-results = []
-
-for symbol in NIFTY_50:
-    df = fetch_intraday_data(symbol)
-    if not df.empty:
-        current_close = df["Close"].iloc[-1]
-        current_rsi = rsi(df["Close"]).iloc[-1]
-        results.append(
-            {
-                "స్టాక్": symbol,
-                "ప్రస్తుత ధర": round(float(current_close), 2),
-                "RSI": round(float(current_rsi), 2),
-            }
-        )
-
-results_df = pd.DataFrame(results)
-st.subheader("📊 ప్రస్తుత RSI విలువలు")
-st.dataframe(results_df, use_container_width=True)
+    """Wilder RSI"""
