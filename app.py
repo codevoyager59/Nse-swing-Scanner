@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import yfinance as yf
+import plotly.express as px
 
 st.set_page_config(page_title="Nifty 50 Scanner", layout="wide")
 st.title("📈 Nifty 50 స్కానర్")
