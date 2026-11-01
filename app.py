@@ -1,13 +1,10 @@
 import numpy as np
 import pandas as pd
-import requests
 import streamlit as st
+import yfinance as yf
 
 st.set_page_config(page_title="Nifty 50 Scanner", layout="wide")
 st.title("📈 Nifty 50 స్కానర్")
-
-# API Configuration - Replace with your actual API key
-API_KEY = "HE9VYFMH4LAI7ELG"
 
 # NIFTY 50 జాబితా
 NIFTY_50 = [
@@ -64,15 +61,12 @@ NIFTY_50 = [
 
 @st.cache_data(ttl=60, show_spinner="డేటా డౌన్లోడ్ అవుతోంది...")
 def fetch_intraday_data(symbol):
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}.NS&interval=1min&apikey={API_KEY}"
-    response = requests.get(url)
-    data = response.json()
-    if "Time Series (1min)" in data:
-        df = pd.DataFrame.from_dict(data["Time Series (1min)"], orient="index")
-        df.columns = ["Open", "High", "Low", "Close", "Volume"]
-        df.index = pd.to_datetime(df.index)
-        df["Close"] = df["Close"].astype(float)
-        return df.sort_index()
+    ticker = f"{symbol}.NS"
+    df = yf.download(
+        ticker, period="1d", interval="1m", progress=False, threads=True
+    )
+    if not df.empty:
+        return df
     return pd.DataFrame()
 
 
@@ -94,12 +88,11 @@ for symbol in NIFTY_50:
         results.append(
             {
                 "స్టాక్": symbol,
-                "ప్రస్తుత ధర": round(current_close, 2),
-                "RSI": round(current_rsi, 2),
+                "ప్రస్తుత ధర": round(float(current_close), 2),
+                "RSI": round(float(current_rsi), 2),
             }
         )
 
 results_df = pd.DataFrame(results)
 st.subheader("📊 ప్రస్తుత RSI విలువలు")
 st.dataframe(results_df, use_container_width=True)
-
