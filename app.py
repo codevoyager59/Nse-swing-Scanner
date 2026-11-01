@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
+import requests
 import streamlit as st
-import yfinance as yf
 
 st.set_page_config(page_title="Nifty 50 Scanner", layout="wide")
 st.title("📈 Nifty 50 స్కానర్")
+
+# API Configuration - Replace with your actual API key
+API_KEY = "HE9VYFMH4LAI7ELG"
 
 # NIFTY 50 జాబితా
 NIFTY_50 = [
@@ -58,21 +61,19 @@ NIFTY_50 = [
     "WIPRO",
 ]
 
-# Sidebar లో కాలావధి ఎంపిక
-period = st.sidebar.selectbox("కాలావధి", ["3mo", "6mo", "1y"])
 
-
-@st.cache_data(ttl=900, show_spinner="డేటా డౌన్లోడ్ అవుతోంది...")
-def load_data(symbols, period):
-    tickers = [f"{s}.NS" for s in symbols]
-    return yf.download(
-        tickers,
-        period=period,
-        group_by="ticker",
-        auto_adjust=True,
-        progress=False,
-        threads=True,
-    )
+@st.cache_data(ttl=60, show_spinner="డేటా డౌన్లోడ్ అవుతోంది...")
+def fetch_intraday_data(symbol):
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}.NS&interval=1min&apikey={API_KEY}"
+    response = requests.get(url)
+    data = response.json()
+    if "Time Series (1min)" in data:
+        df = pd.DataFrame.from_dict(data["Time Series (1min)"], orient="index")
+        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+        df.index = pd.to_datetime(df.index)
+        df["Close"] = df["Close"].astype(float)
+        return df.sort_index()
+    return pd.DataFrame()
 
 
 def rsi(series, n=14):
@@ -83,18 +84,13 @@ def rsi(series, n=14):
     return 100 - (100 / (1 + rs))
 
 
-# డేటాని తీసుకురావడం
-data = load_data(NIFTY_50, period)
-
-# ఫలితాలను నిల్వ చేయడానికి జాబితా
 results = []
 
-# ప్రతి స్టాక్ కి RSI ని కాలిక్యులేట్ చేయడం
 for symbol in NIFTY_50:
-    ticker_data = data[f"{symbol}.NS"]
-    if not ticker_data.empty:
-        current_close = ticker_data["Close"].iloc[-1]
-        current_rsi = rsi(ticker_data["Close"]).iloc[-1]
+    df = fetch_intraday_data(symbol)
+    if not df.empty:
+        current_close = df["Close"].iloc[-1]
+        current_rsi = rsi(df["Close"]).iloc[-1]
         results.append(
             {
                 "స్టాక్": symbol,
@@ -103,9 +99,7 @@ for symbol in NIFTY_50:
             }
         )
 
-# ఫలితాలను DataFrame లోకి మార్చడం
 results_df = pd.DataFrame(results)
-
-# యాప్ లో డిస్ప్లే చేయడం
 st.subheader("📊 ప్రస్తుత RSI విలువలు")
 st.dataframe(results_df, use_container_width=True)
+
