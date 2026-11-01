@@ -1,48 +1,41 @@
+import pandas as pd
 import streamlit as st
-st.title("NSE Swing Scanner")
-import os
-import time
-import requests
+import yfinance as yf
 
-api_key = os.environ.get("ALPHAVANTAGE_API_KEY")
+st.set_page_config(page_title="Nifty 50 Scanner", layout="wide")
+st.title("📈 Nifty 50 స్కానర్")
 
-nifty_stocks = [
-    "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK",
-    "BHARTIARTL", "SBIN", "HINDUNILVR", "LT", "ITC",
+# నిఫ్టీ 50 జాబితా మారుతూ ఉంటుంది; అవసరమైతే ఇక్కడ సవరించండి
+NIFTY_50 = [
+    "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT", "AXISBANK",
+    "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV", "BEL", "BHARTIARTL",
+    "CIPLA", "COALINDIA", "DRREDDY", "EICHERMOT", "ETERNAL",
+    "GRASIM", "HCLTECH", "HDFCBANK", "HDFCLIFE", "HINDALCO",
+    "HINDUNILVR", "ICICIBANK", "INDIGO", "INFY", "ITC",
+    "JIOFIN", "JSWSTEEL", "KOTAKBANK", "LT", "M&M",
+    "MARUTI", "MAXHEALTH", "NESTLEIND", "NTPC", "ONGC",
+    "POWERGRID", "RELIANCE", "SBILIFE", "SBIN", "SHRIRAMFIN",
+    "SUNPHARMA", "TATACONSUMER", "TATAMOTORS", "TATASTEEL", "TCS",
+    "TECHM", "TITAN", "TRENT", "ULTRACEMCO", "WIPRO",
 ]
 
-all_stocks_data = []
+period = st.sidebar.selectbox("కాలవ్యవధి", ["3mo", "6mo", "1y", "2y"], index=1)
 
-for symbol in nifty_stocks:
-    params = {
-        "function": "GLOBAL_QUOTE",
-        "symbol": f"{symbol}.BSE",
-        "apikey": 'api_key',
-    }
-    try:
-        response = requests.get(
-            "https://www.alphavantage.co/query", params=params, timeout=10
-        )
-        response.raise_for_status()
-        data = response.json()
-    except requests.RequestException as e:
-        print(f"{symbol}: రిక్వెస్ట్ విఫలమైంది - {e}")
-        continue
 
-    quote = data.get("Global Quote")
-    if quote:
-        all_stocks_data.append(
-            {
-                "symbol": symbol,
-                "price": quote.get("05. price"),
-                "change_percent": quote.get("10. change percent"),
-            }
-        )
-    else:
-        # లిమిట్ లేదా తప్పు సింబల్ సందేశం
-        print(f"{symbol}: డేటా రాలేదు - {data}")
+@st.cache_data(ttl=900, show_spinner="డేటా డౌన్‌లోడ్ అవుతోంది...")
+def load_data(symbols, period):
+    tickers = [f"{s}.NS" for s in symbols]
+    return yf.download(
+        tickers,
+        period=period,
+        group_by="ticker",
+        auto_adjust=True,
+        progress=False,
+        threads=True,
+    )
 
-    time.sleep(13)  # ఉచిత ప్లాన్ లిమిట్ కోసం
 
-for item in all_stocks_data:
-    print(item)
+def rsi(series, n=14):
+    delta = series.diff()
+    gain = delta.clip(lower=0).rolling(n).mean()
+    loss = (-delta.clip(upper=0)).rolling(n).mean()
